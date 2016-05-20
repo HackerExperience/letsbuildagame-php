@@ -1,0 +1,16 @@
+<?php
+
+return array(
+    'database' => array(
+        'hostname' => '127.0.0.1',
+        'socket' => 'host', //host or unix_socket
+        'username' => '',
+        'password' => '',
+        'port_number' => '3306',
+        'db_name' => '',
+        'config' => array(
+        PDO::ATTR_PERSISTENT => true,
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
+        )
+    ),
+); 
