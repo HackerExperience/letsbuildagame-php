@@ -176,7 +176,6 @@ class User {
     private function _authenticate(){
 
         $username = $this->getUsername();
-        $password = $this->hashPassword($this->getPassword());
         
         $search_value = $username;
         $search_method = 'username';
@@ -193,7 +192,7 @@ class User {
             return Array(FALSE, 'USERNAME_DOESNT_EXISTS');
         }
         
-        if (!password_verify($this->getPassword(), $password)) {
+        if (!password_verify($this->getPassword(), $query->password)) {
             return Array(FALSE, 'PASSWORD_MISMATCH');
         }
         
