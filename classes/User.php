@@ -220,13 +220,7 @@ class User {
         
         if(!$validate_success){
             return Array(FALSE, $validate_msg);
-        }
-
-        if (strpos($_SERVER['HTTP_REFERER'], 'letsbuildagame')) {
-            $origin = 'lbag';
-        } else {
-            $origin = 'vfuj';
-        }
+        }        
         
         $sql_query = "INSERT INTO users(username, email, password, origin) VALUES (?, ?, ?, ?)";
         $sql_reg = $this->_dbo->prepare($sql_query);
@@ -234,7 +228,7 @@ class User {
         try {
             $sql_reg->execute(array($this->getUsername(), $this->getEmail(), 
                                     User::hashPassword($this->getPassword()),
-                                    $origin));
+                                    Session::getOrigin()));
             $userID = $this->_dbo->lastInsertId('users_user_id_seq');
         } catch (PDOException $e) {
             error_log($e);
@@ -285,18 +279,6 @@ class User {
         return $stmt->fetch(PDO::FETCH_OBJ);
     }
 
-//    public function update() {
-//        $sql_query = "UPDATE users SET username = ?, email = ?, password = ? WHERE users.users_id = ?";
-//        $sql_reg = $this->_dbo->prepare($sql_query);
-//        $sql_reg->execute(array($this->getUsername(), $this->getEmail(), $this->getPassword(), $this->getUserId()));
-//    }
-//
-//    public function delete() {
-//        $sql_query = "DELETE FROM users WHERE users.users_id = ?";
-//        $sql_reg = $this->_dbo->prepare($sql_query);
-//        $sql_reg->execute(array($this->getUserId()));
-//    }
-
     private static function hashPassword($password) {
         $options = [
             'cost' => 14,
@@ -305,7 +287,16 @@ class User {
     }
 
     public function send_code($to, $code) {
-        $tpl = new EmailTemplate('contact@hackerexperience.com', $to);
+        
+        $origin = Session::getOrigin();
+        
+        if ($origin == 'lbag') {
+            $name = 'Let\'s Build a Game';
+        } else {
+            $name = 'Vamos Fazer um Jogo';
+        }
+        
+        $tpl = new EmailTemplate('contact@letsbuildagame.org', $to, $name);
         $tpl->confirm_email($code);
 
         $email = new Email();

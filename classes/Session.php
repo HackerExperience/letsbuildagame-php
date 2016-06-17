@@ -25,6 +25,17 @@ class Session {
         $this->_user = $user;
     }
     
+    public static function getOrigin() {
+        
+        if (strpos($_SERVER['HTTP_REFERER'], 'letsbuildagame')) {
+            $origin = 'lbag';
+        } else {
+            $origin = 'vfuj';
+        }
+        
+        return $origin;
+    }
+    
     public static function getInstance() {
         
         if (static::$_instance === NULL) {
