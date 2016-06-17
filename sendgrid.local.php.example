@@ -1,7 +1,0 @@
-<?php
-
-return array(
-    'sendgrid' => array(
-        'api-key' => '',
-    ),
-);

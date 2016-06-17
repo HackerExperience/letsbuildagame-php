@@ -6,25 +6,29 @@
  * and open the template in the editor.
  */
 
-require 'sendgrid/sendgrid-php.php';
+require __DIR__ . '/../vendor/autoload.php';
+use Mailgun\Mailgun;
 
 class Email {
     
     private $key;
-    private $sendgrid;
+    private $client;
+    private $mailgun;
     
     public function __construct() {
         
         $config = $this->getConfiguration();
-        $this->key = $config['sendgrid']['api-key'];
-        $this->sendgrid = new SendGrid($this->key);
+        $this->key = $config['mailgun']['api-key'];
+        $this->client = new \Http\Adapter\Guzzle6\Client();
+        $this->mailgun = new Mailgun($this->key, $this->client);
         
     }
     
     public function getConfiguration() {
-        $config_file = __DIR__ . '/../sendgrid.local.php';
+        $config_file = __DIR__ . '/../mailgun.local.php';
         if (!is_file($config_file)) {
-            throw new Exception('Create the configuration file database. (sendgrid.local.php)');
+            throw new Exception('Create the configuration file database. '
+                    . '(mailgun.local.php)');
         }
 
         return include $config_file;
@@ -32,19 +36,21 @@ class Email {
     
     public function send($EmailTemplate) {
         
-        $email = new SendGrid\Email();
-        $email
-                ->addTo($EmailTemplate->to)
-                ->setFrom($EmailTemplate->from)
-                ->setSubject($EmailTemplate->subject)
-                ->setText($EmailTemplate->msgText)
-                ->setHtml($EmailTemplate->msgHtml)
-        ;
+
         
         try {
-            $this->sendgrid->send($email);
+            $this->mailgun->sendMessage(
+                $EmailTemplate->fromDomain, 
+                array(
+                    'from'    => $EmailTemplate->from, 
+                    'to'      => $EmailTemplate->to, 
+                    'subject' => $EmailTemplate->subject, 
+                    'text'    => $EmailTemplate->msgText,
+                    'html'    => $EmailTemplate->msgHtml
+                )
+            );
             return TRUE;
-        } catch (SendGrid\Exception $e) {
+        } catch (Exception $e) {
             error_log($e);
             return FALSE;
         }
@@ -56,14 +62,16 @@ class Email {
 class EmailTemplate {
     
     public $from;
+    public $fromDomain;
     public $to;
     public $subject;
     public $msgText;
     public $msgHtml;
     
-    public function __construct($from, $to) {
-        $this->from = $from;
+    public function __construct($from, $to, $name = '') {
+        $this->from = $name . '<' . $from . '>';
         $this->to = $to;
+        $this->fromDomain = substr(strrchr($from, "@"), 1);
     }
     
     public function confirm_email($code) {

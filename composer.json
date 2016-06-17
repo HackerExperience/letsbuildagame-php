@@ -1,15 +1,6 @@
 {
-  "name": "he2/lbag",
-  "description": "description_text",
-  "minimum-stability": "stable",
-  "license": "proprietary",
-  "authors": [
-    {
-      "name": "Allan Jorge",
-      "email": "aj@hackerexperience.com"
+    "require": {
+        "mailgun/mailgun-php": "~2.0",
+        "php-http/guzzle6-adapter": "^1.0"
     }
-  ],
-  "require": {
-    "google/apiclient": "1.1.7"
-  }
 }
