@@ -1,2 +1,4 @@
 vendor/
 nbproject/
+database.local.php
+mailgun.local.php
