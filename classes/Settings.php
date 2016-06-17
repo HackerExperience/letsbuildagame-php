@@ -52,8 +52,8 @@ class Settings {
 //        if (!property_exists($query, $setting_name)) {
 //            return FALSE;
 //        }
-        
-        $this->setSettings((array)$query);
+//        
+//        $this->setSettings((array)$query);
         
         return TRUE;
         
@@ -152,7 +152,8 @@ class Settings {
         $sql_reg = $this->_dbo->prepare($sql_query);
         
         try {
-            $sql_reg->execute(array(':user_id' => $this->getUserId(), ':setting_value' => $setting_value));
+            $sql_reg->execute(array(':user_id' => $this->getUserId(), 
+                                    ':setting_value' => $setting_value));
         } catch (PDOException $e) {
             error_log($e);
             return FALSE;
@@ -180,16 +181,51 @@ class Settings {
         
     }
     
+    public function get_user_settings() {
+        
+        if (!$this->_assert_user_id()) {
+            return FALSE;
+        }
+        
+        $query = $this->_read($this->getUserId());
+        
+        if (!$query) {
+            return FALSE;
+        }
+        
+        $settings = (array)$query;
+        unset($settings['user_id']);
+     
+        return $settings;
+    }
+    
 }
 
-function upsert_setting($setting_name, $setting_value) {
-
-    $session = new Session();
-    if (!$session->exists()) {
-        return Array(FALSE, 'SYSTEM_ERROR');
+function upsert_setting($setting_name, $setting_value) {    
+    
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array($login_status, $login_msg);
     }
+    
+    $session = Session::getInstance();
     
     $settings = new Settings($session->getUserId());
     return $settings->updateEntry($setting_name, $setting_value);
+    
+}
+
+
+function fetch_all_settings() {
+    
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array(FALSE, $login_msg);
+    }
+    
+    $session = Session::getInstance();
+    
+    $settings = new Settings($session->getUserId());
+    return $settings->get_user_settings();
     
 }

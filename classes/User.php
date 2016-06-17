@@ -3,9 +3,11 @@
 require_once 'classes/connection.php';
 require_once 'classes/EmailVerification.php';
 require_once 'classes/Session.php';
+require_once 'classes/UserProject.php';
 
 
 class User {
+    
     private $_user_id;
     private $_username;
     private $_email;
@@ -58,28 +60,28 @@ class User {
         
         // Do not accept usernames made only of numbers
         if (ctype_digit($username)) {
-            return $this->_validateReturn(FALSE, 'ERR_INVALID_USERNAME');
+            return Array(FALSE, 'ERR_INVALID_USERNAME');
         }
         
         // Do not accept too big or too small usernames
         if (strlen($username) >= 15) {
-            return $this->_returnArray(FALSE, 'ERR_USERNAME_TOO_BIG');
+            return Array(FALSE, 'ERR_USERNAME_TOO_BIG');
         } elseif (strlen($username) < 2) {
-            return $this->_returnArray(FALSE, 'ERR_USERNAME_TOO_SMALL');
+            return Array(FALSE, 'ERR_USERNAME_TOO_SMALL');
         }
         
         // Assert username starts with a character or any of: _.-
         if (!preg_match('/^[a-zA-Z0-9_.-]{2,15}$/', $username)) {
-            return $this->_returnArray(FALSE, 'ERR_INVALID_USERNAME');
+            return Array(FALSE, 'ERR_INVALID_USERNAME');
         }
         
         //Check if user already exists
         if ($this->read($username, 'username')) { 
-           return $this->_returnArray(FALSE, 'ERR_USERNAME_EXISTS');
+           return Array(FALSE, 'ERR_USERNAME_EXISTS');
         }
         
         // Username is valid.
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
     }
     
     public function validateEmail() {
@@ -87,16 +89,16 @@ class User {
         $email = $this->getEmail();
         
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
-            return $this->_returnArray(FALSE, 'ERR_INVALID_EMAIL');
+            return Array(FALSE, 'ERR_INVALID_EMAIL');
         }
         
         // Check if email already exists
         if ($this->read($email, 'email')) { 
-           return $this->_returnArray(FALSE, 'ERR_EMAIL_EXISTS');
+           return Array(FALSE, 'ERR_EMAIL_EXISTS');
         }
         
         // Email is valid.
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
         
     }
     
@@ -105,67 +107,64 @@ class User {
         $password = $this->getPassword();
         
         if(strlen($password) < 6){
-            return $this->_returnArray(FALSE, 'ERR_PASSWORD_SMALL');
+            return Array(FALSE, 'ERR_PASSWORD_SMALL');
         }
         
         if($password == $this->getUsername()){
-            return $this->_returnArray(FALSE, 'ERR_PASSWORD_WEAK');
+            return Array(FALSE, 'ERR_PASSWORD_WEAK');
         }
         
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
         
     }
     
     public function validateAll(){
         list($vu, $vu_msg) = $this->validateUsername();
         if (!$vu){
-            return $this->_returnArray(FALSE, $vu_msg);
+            return Array(FALSE, $vu_msg);
         }
         
         list($ve, $ve_msg) = $this->validateEmail();
         if(!$ve){
-            return $this->_returnArray(FALSE, $ve_msg);
+            return Array(FALSE, $ve_msg);
         }
         
         list($vp, $vp_msg) = $this->validatePassword();
         if(!$vp){
-            return $this->_returnArray(FALSE, $vp_msg);
+            return Array(FALSE, $vp_msg);
         }
         
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
     }
     
-    private function _returnArray($status, $msg = '') {
-        return Array($status, $msg);
-    }
-
     public function login(){
         
-        $session = new Session();
+        $session = Session::getInstance();
         
         if($session->exists()){
-            return $this->_returnArray(TRUE);
+            $session->destroy();
+            $session->start();
         }
         
         list($auth_success, $auth_msg) = $this->_authenticate();
         
         if(!$auth_success){
-            return $this->_returnArray(FALSE, $auth_msg);
+            return Array(FALSE, $auth_msg);
         }
         
-        $session->setUserId($this->getUserId());
+        $session->setUser($this);
         $session->create();
         
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
         
     }
     
     public function logout(){
         
-        $session = new Session();
+        $session = Session::getInstance();
         
         if(!$session->exists()){
-            return $this->_returnArray(FALSE, 'NOT_LOGGED');
+            return Array(FALSE, 'NOT_LOGGED_IN');
         }
         
         $session->destroy();
@@ -191,19 +190,28 @@ class User {
         $query = $this->read($search_value, $search_method);
                 
         if(!$query){
-            return $this->_returnArray(FALSE, 'USERNAME_DOESNT_EXISTS');
+            return Array(FALSE, 'USERNAME_DOESNT_EXISTS');
         }
         
         if (!password_verify($this->getPassword(), $password)) {
-            return $this->_returnArray(FALSE, 'PASSWORD_MISMATCH');
+            return Array(FALSE, 'PASSWORD_MISMATCH');
         }
         
         $this->setUserId($query->user_id);
         $this->setUsername($query->username);
         $this->setEmail($query->email);
         
-        return $this->_returnArray(TRUE);
+        return Array(TRUE, '');
         
+    }
+    
+    public function fetch_data_from_id() {
+        $query = $this->read($this->getUserId(), 'id');
+        
+        $this->setUsername($query->username);
+        $this->setEmail($query->email);
+        
+        return $this;
     }
     
     public function create() {
@@ -297,12 +305,20 @@ class User {
     }
 
     public function send_code($to, $code) {
-            $tpl = new EmailTemplate('contact@hackerexperience.com', $to);
-            $tpl->confirm_email($code);
+        $tpl = new EmailTemplate('contact@hackerexperience.com', $to);
+        $tpl->confirm_email($code);
 
-            $email = new Email();
-            return $email->send($tpl);
-	}
+        $email = new Email();
+        return $email->send($tpl);
+    }
+    
+    public function fetch_user_metadata() {
+        
+        return Array(
+            'username' => $this->getUsername(),
+        );
+        
+    }
 }
 
 function validate_user($username) {
@@ -357,5 +373,69 @@ function verify_email($code) {
     $verification = new EmailVerification($code, '');
 
     return Array($verification->validate(), '');
+    
+}
+
+function login_user($username, $password) {
+    
+    $user = new User($username, '', $password);
+    
+    list($login_success, $login_msg) = $user->login();
+    
+    if ($login_success) {
+        $login_msg = session_id();
+    }
+    
+    return Array($login_success, $login_msg);
+    
+}
+
+function assert_login() {
+    
+    $error_msg = 'NOT_LOGGED_IN';
+    
+    $session = Session::getInstance();
+    if (!$session->exists()) {
+        return Array(FALSE, $error_msg);
+    }
+    
+    $is_valid = $session->validate();
+    
+    if ($is_valid) {
+        $error_msg = '';
+    }
+        
+    return Array($is_valid, $error_msg);
+}
+
+
+function fetch_user_data() {
+        
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array(FALSE, $login_msg);
+    }
+    
+    $data = Array(
+        'meta' => fetch_metadata(),
+        'teams' => fetch_all_teams(),
+        'tasks' => fetch_all_tasks(),
+        'settings' => fetch_all_settings(),
+        'notifications' => fetch_all_notifications()
+    );
+    
+    return Array(TRUE, $data);
+    
+}
+
+function fetch_metadata() {
+    
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array(FALSE, $login_msg);
+    }
+    
+    $session = Session::getInstance();
+    return $session->getUser()->fetch_user_metadata();
     
 }

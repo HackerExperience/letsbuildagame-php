@@ -1,8 +1,9 @@
 <?php
 
-if(php_sapi_name() != 'cli') exit();
+//if(php_sapi_name() != 'cli') exit();
 
 require_once 'classes/Project.php';
+require_once 'classes/Notification.php';
 
 // -----------------------------------------------------------------------------
 // Add all teams to the database
@@ -28,3 +29,13 @@ foreach ($all_tasks as $name => $task_group) {
     }
 }
 
+// -----------------------------------------------------------------------------
+// Add all notifications to the database
+// -----------------------------------------------------------------------------
+
+$all_notifications = all_notifications();
+
+foreach ($all_notifications as $notification_id => $notification_name) {
+    $notificationobj = new Notification($notification_id, $notification_name);
+    $notificationobj->add();
+}

@@ -151,6 +151,11 @@ class Project {
         
         return TRUE;
     }
+    
+    public function getProjectsByUser() {
+        
+    }
+    
 }
 
 
@@ -176,6 +181,14 @@ class Team {
     
     public function join($user_id) {
         return $this->getTeam()->subscribe($user_id);
+    }
+    
+    public function quit($user_id) {
+        return $this->getTeam()->unsubscribe($user_id);
+    }
+    
+    public static function nice_name($name) {
+        return strtolower(str_replace("TEAM_", "", $name));
     }
     
 }
@@ -206,6 +219,10 @@ class Task {
     
     public function unsubscribe($user_id) {
         return $this->getTask()->unsubscribe($user_id);
+    }
+    
+    public static function nice_name($name) {
+        return strtolower(str_replace("TASK_", "", $name));
     }
         
 }
@@ -376,12 +393,14 @@ function all_tasks(){
     
 }
 
-function register_teams($data) {
-    $session = new Session();
+function register_teams($data) {    
     
-    if (!$session->exists()) {
-        return Array(FALSE, 'SYSTEM_ERROR');
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array(FALSE, $login_msg);
     }
+    
+    $session = Session::getInstance();
 
     if (!isset($data)) {
         return Array(FALSE, 'ERR_INVALID_DATA');
@@ -391,11 +410,8 @@ function register_teams($data) {
 
     $team_array = $data;
 
+    
     foreach ($team_array as $key => $value) {
-
-        if ($value !== TRUE) {
-            continue;
-        }
 
         if (strpos($key, 'team-') === false) {
             continue;
@@ -407,9 +423,15 @@ function register_teams($data) {
         if (!in_array($team_id, $teams)) {
             continue;
         }
-
+        
         $team_obj = new Team($team_id);
-        $team_obj->join($session->getUserId());
+        
+        if ($value === TRUE || $value == 'true') {
+            $team_obj->join($session->getUserId());
+        } else {
+            $team_obj->quit($session->getUserId());
+        }
+        
     }
     
     return Array(TRUE, '');
@@ -418,10 +440,12 @@ function register_teams($data) {
 
 function toggle_subscription($task_id, $team_id, $action = 'subscribe-task') {
     
-    $session = new Session();
-    if (!$session->exists()) {
-        return Array(FALSE, 'SYSTEM_ERROR');
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array(FALSE, $login_msg);
     }
+    
+    $session = Session::getInstance();
 
     if (!isset($task_id) || !isset($team_id)) {
         return Array(FALSE, 'SYSTEM_ERROR');

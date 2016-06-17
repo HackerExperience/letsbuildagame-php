@@ -19,13 +19,17 @@ function update_result($status_array) {
 }
 
 function function_dispatcher($function) {
-    
+        
     if (isset($_POST['sess'])) {
-        $session = new Session();
+        $session = Session::getInstance();
         $session->create($_POST['sess']);
     }
     
+    
     switch ($function) {
+        
+        case 'check-session':
+            return update_result(assert_login());
         
         case 'validate-user':
             return update_result(validate_user($_POST['data']));
@@ -33,6 +37,9 @@ function function_dispatcher($function) {
         case 'validate-email':
             return update_result(validate_email($_POST['data']));
         
+        case 'login':
+            return update_result(login_user($_POST['username'], $_POST['password']));
+            
         case 'register-user':
             return 
                 update_result(
@@ -79,6 +86,8 @@ function function_dispatcher($function) {
                     )
                 );
             
+        case 'fetch-user-data':
+            return update_result(fetch_user_data());
             
         default:
             return update_result(Array(FALSE, 'INVALID_FUNCTION'));

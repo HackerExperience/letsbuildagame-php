@@ -51,8 +51,12 @@ class Notification {
         } elseif (!$this->_assert_user_id()) {
             return Array(FALSE, 'MISSING_USER_ID');
         }
-                
-        return $this->_read($this->getUserId(), 'user_id');
+          
+        $user_notifications = (array)$this->get_user_notifications();
+        
+        
+        
+        //return $this->_read($this->getUserId(), 'user_id', 1,);
         
     }
     
@@ -94,10 +98,11 @@ class Notification {
         
     }
     
-    public function create() {
-        
-        
-        
+    public function add() {
+        $sql_query = "INSERT INTO notifications(notification_id, notification_desc) VALUES (?, ?) "
+                . "ON CONFLICT DO NOTHING";
+        $sql_reg = $this->_dbo->prepare($sql_query);
+        $sql_reg->execute(array($this->getNotificationId(), $this->getNotificationDesc()));
     }
     
     private function _read($search_value, $search_method='id', $limit = 1) {
@@ -115,10 +120,16 @@ class Notification {
             throw new Exception('No valid arguments for user read.');
         }
         
+        $fetch_multiple = FALSE;
+        
         if ($limit === FALSE) {
             $limit = '';
+            $fetch_multiple = TRUE;
         } elseif (is_int($limit)) {
-           $limit = 'LIMIT ' . (int)$limit; 
+            if($limit > 1) {
+                $fetch_multiple = TRUE;
+            }
+            $limit = 'LIMIT ' . (int)$limit; 
         } else {
             throw new Exception('Invalid limit parameter');
         }
@@ -126,6 +137,7 @@ class Notification {
         $dbo = PDO_DB::factory();
         $sql_query = 'SELECT * FROM '.$table_name.' WHERE '.$table_name.
             '.'.$column_name.' = :value '.$limit;
+
         $stmt = $dbo->prepare($sql_query);
 
         try {
@@ -134,8 +146,13 @@ class Notification {
             error_log($e);
             return FALSE;
         }
+
+        if (!$fetch_multiple) {
+            return $stmt->fetch(PDO::FETCH_OBJ);
+        } else {
+            return $stmt->fetchAll(PDO::FETCH_OBJ);
+        }
         
-        return $stmt->fetch(PDO::FETCH_OBJ);
     }
     
     private function _assert_notification_id() {
@@ -147,13 +164,13 @@ class Notification {
         if (!$this->getNotificationDesc()) {
             return FALSE;
         }
-
-        $query = $this->_read($this->_notification_desc, 'desc');
+        
+        $query = $this->_read($this->getNotificationDesc(), 'desc');
         
         if (!$query) {
             return FALSE;
         }
-        
+                
         $this->setNotificationId($query->notification_id);
         
         return TRUE;
@@ -222,25 +239,50 @@ class Notification {
         
     }
     
+    public function get_user_notifications() {
+        
+        if (!$this->_assert_user_id()) {
+            return FALSE;
+        }
+        
+        $query = $this->_read($this->getUserId(), 'user_id', FALSE);
+
+        $user_notifications = Array();
+        
+        for ($i = 0; $i < sizeof($query); $i++) {
+            $user_notifications[] = self::notificationNameById($query[$i]->notification_id);
+        }
+
+        return $user_notifications;
+
+    }
+    
+    public static function all_notifications() {
+        return Array(
+            '1' => 'important_updates',
+            '2' => 'step4_starts',
+            '3' => 'game_released'
+        );
+    }
+    
+    public static function notificationNameById($notification_id) {
+        return self::all_notifications()[$notification_id];
+    }
+    
+    
 }
 
 
 function all_notifications() {
-    
-    return Array(
-        'important_updates',
-        'step4_starts',
-        'game_released'
-    );
-    
+    return Notification::all_notifications();
 }
 
 
 function toggle_notification($notification_desc, $action) {
-    
-    $session = new Session();
-    if (!$session->exists()) {
-        return Array(FALSE, 'SYSTEM_ERROR');
+        
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array($login_status, $login_msg);
     }
     
     if (!isset($notification_desc)) {
@@ -260,10 +302,28 @@ function toggle_notification($notification_desc, $action) {
     $notification = new Notification();
     $notification->setNotificationDesc($notification_desc);
 
+    $session = Session::getInstance();
     if ($action == 'subscribe-notification') {
         return $notification->subscribe($session->getUserId());
     } else {
         return $notification->unsubscribe($session->getUserId());
     }
+    
+}
+
+
+function fetch_all_notifications() {
+    
+    list($login_status, $login_msg) = assert_login();
+    if (!$login_status) {
+        return Array($login_status, $login_msg);
+    }
+    
+    $session = Session::getInstance();
+    
+    $notification = new Notification();
+    $notification->setUserId($session->getUserId());
+    
+    return $notification->get_user_notifications();
     
 }

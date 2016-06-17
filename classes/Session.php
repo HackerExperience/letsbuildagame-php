@@ -4,27 +4,45 @@ require_once 'classes/connection.php';
 //require_once '../vendor/autoload.php';
 
 class Session {
-    private $_userId;
+    private static $_instance;
+    private $_user;
     private $_dbo;
 
-    public function __construct($user_id = '') {
+    protected function __construct() {
         $this->start();
-        $this->setUserId($user_id);
         $this->_dbo = PDO_DB::factory();
     }
 
     public function getUserId() {
-        return $this->_userId;
+        return $this->_user->getUserId();
     }
     
-    public function setUserId($user_id) {
-        $this->_userId = $user_id;
+    public function getUser() {
+        return $this->_user;
+    }
+    
+    public function setUser($user) {
+        $this->_user = $user;
+    }
+    
+    public static function getInstance() {
+        
+        if (static::$_instance === NULL) {
+            static::$_instance = new static();
+        }
+        
+        return static::$_instance;
     }
     
     public function exists(){
         if(isset($_SESSION['user_id']) && isset($_SESSION['ua'])){
             if ($this->validate()) {
-                $this->setUserId($_SESSION['user_id']);
+
+                $user = new User('', '', '');
+                $user->setUserId($_SESSION['user_id']);
+                $user->fetch_data_from_id();
+                
+                $this->setUser($user);
                 return TRUE;
             }
         }
@@ -41,6 +59,13 @@ class Session {
     public function create($sess_id = FALSE){
         
         if ($sess_id) {
+            
+            # The session we are asking to create is the current one 
+            if (session_id() == $sess_id) {
+                return;
+            }
+            
+            # Destroy current session and recreate the requested one
             $this->destroy();
             session_id($sess_id);
             $this->start();

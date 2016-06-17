@@ -14,12 +14,31 @@ require_once 'classes/User.php';
 //    echo $_SESSION['user_id'];
 //}
 
-$username = $_POST['username'];
-$password = $_POST['password'];
+$session = Session::getInstance();
+$session->create('2cat0n2rq6ingf87dfm5l1jcg5');
 
-$user_login = new User($username, '', $password);
-$login = $user_login->login();
+//list($login, $msg) = assert_login();
+//
+//var_dump($login);
+//
+//if (!$login) {
+//    $user = new User('renato', '', 'renato');
+//    var_dump($user->login());
+//    var_dump($_SESSION);
+//    
+//    
+//    var_dump($session->exists());
+//    
+//    exit('oi');
+//} else {
+//    $session = new Session();
+//    $session->exists();
+//    var_dump($_SESSION);
+//    $user = $session->getUser();
+//}
+//$up = new UserProject($user);
+//
+//var_dump(assert_login());
+//var_dump($up);
 
-var_dump($login);
-
-var_dump($_SESSION);
+fetch_user_data();
